@@ -1,0 +1,11 @@
+{
+  // Recommended rather than required: the gate runs the same tools whether or not they are
+  // installed, but these two are what make the editor and the gate agree.
+  //
+  // esbenp.prettier-vscode is the formatter `npm run check` runs; without it, "format on save" in
+  // .vscode/settings.json names a formatter that does not exist and VS Code silently does nothing.
+  //
+  // streetsidesoftware.vscode-spell-checker is not required: `npm run check` runs cspell from
+  // node_modules, and installing this extension makes the same dictionary available while typing.
+  "recommendations": ["esbenp.prettier-vscode", "humao.rest-client"]
+}

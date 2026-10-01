@@ -1,4 +1,45 @@
 {
+  // Format on save is what makes the editor agree with `npm run check` instead of merely
+  // suggesting it. `npm run fix` exists for the files prettier cannot reach.
+  //
+  // No global `editor.defaultFormatter`: prettier has no parser for .gitignore, .nvmrc, .sql or
+  // demo.http, and naming it as the default makes VS Code report an error on every save of one of
+  // those. It is named per language instead, below, which is the list prettier can actually parse.
+  "editor.formatOnSave": true,
+
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // Plain text is how VS Code opens .gitignore, .gitattributes, .nvmrc and the files in .githooks.
+  // prettier cannot parse any of them; editorconfig-checker owns their line endings instead, and it
+  // reads the rules below rather than being told about them twice.
+  "[plaintext]": {
+    "editor.formatOnSave": false,
+    "editor.defaultFormatter": null
+  },
+
+  // These three agree with the [*] block in .editorconfig and with `* text=auto eol=lf` in
+  // .gitattributes. Repeating them here is deliberate: VS Code reads .editorconfig natively, but
+  // only for files it has already opened in an editor, and being explicit is cheaper than a
+  // whitespace-only diff that three tools disagree about.
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.trimFinalNewlines": true,
+
   "workbench.colorCustomizations": {
     "activityBar.activeBackground": "#bdcff1",
     "activityBar.activeBorder": "#15202b",
