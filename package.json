@@ -2,12 +2,15 @@
   "name": "cfpoc",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Small Cloudflare Workers + D1 proof of concept",
   "license": "MIT",
   "engines": {
     "node": ">=22.18.0"
   },
   "scripts": {
+    "check": "node scripts/gate.mjs check",
+    "fix": "node scripts/gate.mjs fix",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:create": "wrangler d1 create cfpoc-events",
