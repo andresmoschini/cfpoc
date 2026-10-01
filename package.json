@@ -1,0 +1,23 @@
+{
+  "name": "cfpoc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Small Cloudflare Workers + D1 proof of concept",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create cfpoc-events",
+    "db:migrate:local": "wrangler d1 migrations apply cfpoc-events --local",
+    "db:migrate:remote": "wrangler d1 migrations apply cfpoc-events --remote",
+    "db:query:local": "wrangler d1 execute cfpoc-events --local --command=\"SELECT * FROM events ORDER BY id DESC;\"",
+    "db:query:remote": "wrangler d1 execute cfpoc-events --remote --command=\"SELECT * FROM events ORDER BY id DESC;\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261001.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3",
+    "wrangler": "4.145.0"
+  }
+}
