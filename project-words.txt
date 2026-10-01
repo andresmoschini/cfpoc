@@ -12,6 +12,7 @@ Azad
 browsable
 cfpoc
 commitlint
+commitlintrc
 esbenp
 greppable
 humao

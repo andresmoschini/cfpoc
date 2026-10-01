@@ -185,6 +185,27 @@ pattern it is checking. Add a value there when the id format changes.
 feat: accept an ISO timestamp with an offset
 ```
 
+One rule is off, and it is worth knowing which. `footer-leading-blank` is disabled in
+[.commitlintrc.json](.commitlintrc.json), because the parser reads any `token: value` line as the
+start of the footer block. A body that contains a colon anywhere therefore makes the rule inspect
+the prose line above that colon and report a blank line that is not missing:
+
+```text
+The split is
+deliberate: a README that grows to 800 lines stops being read.
+```
+
+Measured, it fires on that and on three of the five message shapes tried. Since every commit here
+has a prose body, the warning was on nearly every commit, which is the worst state for a linter to
+be in: it teaches people to ignore it.
+
+The risk the rule was standing in for is covered by the two things that own the trailer.
+`commit-msg` writes it with `git interpret-trailers --in-place`, which writes the separating blank
+line itself, and [scripts/test-session-guard.sh](scripts/test-session-guard.sh) asserts the stamp is
+read back out of the trailers git leaves behind. Both test the trailer; the rule was a proxy for it
+that also fired on prose. Setting `parserOpts.footerPattern` does not help, because the parser
+ignores it, and that was measured rather than assumed.
+
 ## CI
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `npm run check` on every push to `main`

@@ -1,3 +1,11 @@
 {
-  "extends": ["@commitlint/config-conventional"]
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "footer-leading-blank": [0]
+  },
+  "_comment": [
+    "footer-leading-blank is off, on purpose. The parser reads any `token: value` line as the start of the footer block, so a body with a colon anywhere makes this rule inspect the line of prose above that colon and report a blank line that is not missing. Measured: it fires on a body reading `The split is deliberate: a README that grows to 800 lines stops being read` and on three of the five message shapes tried. Every commit in this repository has a prose body, so the warning was on nearly every commit, which trains people to ignore the tool.",
+    "What the rule would have caught is covered by the two things that own the trailer. .githooks/commit-msg writes it with `git interpret-trailers --in-place`, which writes the separating blank line itself, and scripts/test-session-guard.sh asserts the stamp is read back out of the trailers git leaves behind. Both are tests of the trailer; this rule was a proxy for it that also fired on prose.",
+    "Setting `parserOpts.footerPattern` does not help: the parser ignores it. Measured, not assumed. The remaining alternative is a custom rule, which is more machinery than the thing being replaced."
+  ]
 }
