@@ -40,10 +40,7 @@ describe("cfpoc worker", () => {
   it("returns health information", async () => {
     const env = createEnv();
 
-    const response = await worker.fetch(
-      new Request("https://example.com/"),
-      env as never
-    );
+    const response = await worker.fetch(new Request("https://example.com/"), env as never);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -77,12 +74,7 @@ describe("cfpoc worker", () => {
     });
 
     expect(env.inserted).toEqual([
-      [
-        "test-01",
-        "2026-10-01T12:00:00Z",
-        "telemetry",
-        JSON.stringify({ temperature: 23.4 })
-      ]
+      ["test-01", "2026-10-01T12:00:00Z", "telemetry", JSON.stringify({ temperature: 23.4 })]
     ]);
   });
 
@@ -201,18 +193,13 @@ describe("cfpoc worker", () => {
         "Content-Type": "application/json"
       });
 
-      expect(response.headers.get("WWW-Authenticate")).toBe(
-        'Bearer realm="cfpoc"'
-      );
+      expect(response.headers.get("WWW-Authenticate")).toBe('Bearer realm="cfpoc"');
     });
 
     it("leaves the health endpoint open", async () => {
       const env = createEnv();
 
-      const response = await worker.fetch(
-        new Request("https://example.com/"),
-        env as never
-      );
+      const response = await worker.fetch(new Request("https://example.com/"), env as never);
 
       expect(response.status).toBe(200);
     });

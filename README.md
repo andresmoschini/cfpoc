@@ -20,7 +20,7 @@ The same Worker can run locally with a local D1 database or online with a Cloudf
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22.18.0 or newer, named in [.nvmrc](.nvmrc)
 - A Cloudflare account
 - Wrangler (installed locally through the project dependencies)
 - For online deployment: authentication with your Cloudflare account
@@ -43,13 +43,14 @@ npm install
 
 ## Local development
 
-The local development environment uses Wrangler's local D1 database. It does not modify the remote Cloudflare database.
+The local development environment uses Wrangler's local D1 database. It does not modify the remote
+Cloudflare database.
 
 > **Note: `npm run dev` always uses the local D1 database.**
 >
-> Even when `wrangler.jsonc` points at a real `database_id`, `wrangler dev` binds the
-> database in `local` mode. Requests sent to the local server are written to the local
-> database, never to the remote one. You can confirm it in the startup output:
+> Even when `wrangler.jsonc` points at a real `database_id`, `wrangler dev` binds the database in
+> `local` mode. Requests sent to the local server are written to the local database, never to the
+> remote one. You can confirm it in the startup output:
 >
 > ```text
 > env.DB (cfpoc-events)      D1 Database      local
@@ -62,12 +63,12 @@ The local development environment uses Wrangler's local D1 database. It does not
 > ```
 >
 > Every request then goes to your Cloudflare account. This is rarely what you want during
-> development, and it is the most common reason a row you thought you had written never
-> shows up in production.
+> development, and it is the most common reason a row you thought you had written never shows up in
+> production.
 >
-> The local database is a separate SQLite file under `.wrangler/state/`, keyed by
-> `database_id`. If you change `database_id`, Wrangler points at a *new* empty local
-> database, so run `npm run db:migrate:local` again and expect local rows to be gone.
+> The local database is a separate SQLite file under `.wrangler/state/`, keyed by `database_id`. If
+> you change `database_id`, Wrangler points at a _new_ empty local database, so run
+> `npm run db:migrate:local` again and expect local rows to be gone.
 
 First apply the migrations locally:
 
@@ -105,7 +106,7 @@ curl -X POST http://localhost:8787/events \
 Expected response:
 
 ```json
-{"ok":true}
+{ "ok": true }
 ```
 
 Query the local database:
@@ -187,8 +188,8 @@ For this project that is:
 https://cfpoc.andresmoschini.workers.dev
 ```
 
-The endpoint is public and has no authentication, so anyone can post events to
-it. Do not send sensitive data until you add auth.
+The endpoint is public and has no authentication, so anyone can post events to it. Do not send
+sensitive data until you add auth.
 
 Test the online API:
 
@@ -213,9 +214,8 @@ npm run db:query:remote
 
 ## Authentication
 
-`POST /events` requires a shared token in the `Authorization` header. The health
-endpoint `GET /` stays open, so you can still check that the Worker is alive without
-a token.
+`POST /events` requires a shared token in the `Authorization` header. The health endpoint `GET /`
+stays open, so you can still check that the Worker is alive without a token.
 
 ```bash
 curl -X POST https://cfpoc.andresmoschini.workers.dev/events \
@@ -228,8 +228,8 @@ Requests without a valid token get `401` and nothing is written to the database.
 
 ### Set up the token locally
 
-Wrangler reads `.dev.vars` automatically and exposes the values as env bindings, so
-the same code runs locally and in production. That file is gitignored.
+Wrangler reads `.dev.vars` automatically and exposes the values as env bindings, so the same code
+runs locally and in production. That file is gitignored.
 
 ```bash
 cp .dev.vars.example .dev.vars
@@ -245,32 +245,31 @@ node -e "console.log(crypto.randomUUID())"
 EVENTS_API_TOKEN=paste-the-generated-value-here
 ```
 
-Then run `npm run dev` as usual. The token is required locally too, so you cannot
-forget it and only discover the problem in production.
+Then run `npm run dev` as usual. The token is required locally too, so you cannot forget it and only
+discover the problem in production.
 
 #### Why `.dev.vars` and not `.env`?
 
-Wrangler reads both, so either works for `npm run dev`. This was verified by
-removing `.dev.vars`, leaving only `.env`, and confirming the Worker still received
-the binding. The project keeps `.dev.vars` because:
+Wrangler reads both, so either works for `npm run dev`. This was verified by removing `.dev.vars`,
+leaving only `.env`, and confirming the Worker still received the binding. The project keeps
+`.dev.vars` because:
 
-- It is the name Wrangler's own scaffolding uses for local secrets, so it is
-  greppable when you are unsure where a local secret lives.
-- Its contents are only ever read by `wrangler dev`. A `.env` file is picked up by
-  many tools, so a secret in it can leak into a test runner, a linter or a bundler
-  that loads the environment implicitly.
+- It is the name Wrangler's own scaffolding uses for local secrets, so it is greppable when you are
+  unsure where a local secret lives.
+- Its contents are only ever read by `wrangler dev`. A `.env` file is picked up by many tools, so a
+  secret in it can leak into a test runner, a linter or a bundler that loads the environment
+  implicitly.
 
-Note that the VS Code REST Client extension does **not** read `.env` files, so
-switching to `.env` would not make the tokens available to `demo.http` anyway. The
-extension takes its variables from `http-client.env.json` (safe to commit) and
-`http-client.private.env.json` (private, gitignored here). Requesting native `.env`
-support is a long-standing open issue in the extension
+Note that the VS Code REST Client extension does **not** read `.env` files, so switching to `.env`
+would not make the tokens available to `demo.http` anyway. The extension takes its variables from
+`http-client.env.json` (safe to commit) and `http-client.private.env.json` (private, gitignored
+here). Requesting native `.env` support is a long-standing open issue in the extension
 ([#418](https://github.com/Huachao/vscode-restclient/issues/418)).
 
 #### Tokens for `demo.http`
 
-`demo.http` takes its tokens from `http-client.private.env.json`, which is
-gitignored. Create it once:
+`demo.http` takes its tokens from `http-client.private.env.json`, which is gitignored. Create it
+once:
 
 ```json
 {
@@ -286,8 +285,8 @@ Then switch environments by editing the two marked lines in `demo.http`:
 @apiToken = {{localToken}}
 ```
 
-Change both to `{{remoteUrl}}` and `{{prodToken}}` to test production. They travel
-together on purpose: each environment has its own token.
+Change both to `{{remoteUrl}}` and `{{prodToken}}` to test production. They travel together on
+purpose: each environment has its own token.
 
 ### Set the token in production
 
@@ -305,10 +304,10 @@ npx wrangler secret put EVENTS_API_TOKEN
 
 Wrangler prompts for the value and encrypts it.
 
-**Local and production use different tokens on purpose.** A token leaked from a
-developer's machine should not grant access to production, and a token pasted into
-a chat window or a screenshot should not be a production credential. The two
-environments are therefore independent: rotating one does not affect the other.
+**Local and production use different tokens on purpose.** A token leaked from a developer's machine
+should not grant access to production, and a token pasted into a chat window or a screenshot should
+not be a production credential. The two environments are therefore independent: rotating one does
+not affect the other.
 
 To confirm a secret exists without revealing it:
 
@@ -318,8 +317,8 @@ npx wrangler secret list
 
 ### Changing the production token
 
-Secrets are environment-level, not tied to a version, so you do **not** need to
-redeploy. Wrangler applies the new value on the next request.
+Secrets are environment-level, not tied to a version, so you do **not** need to redeploy. Wrangler
+applies the new value on the next request.
 
 1. Generate a new token:
 
@@ -327,15 +326,14 @@ redeploy. Wrangler applies the new value on the next request.
    node -e "console.log(crypto.randomUUID())"
    ```
 
-2. Overwrite the secret. `wrangler secret put` asks for the new value and replaces
-   the old one:
+2. Overwrite the secret. `wrangler secret put` asks for the new value and replaces the old one:
 
    ```bash
    npx wrangler secret put EVENTS_API_TOKEN
    ```
 
-3. Update the `prodToken` value in `http-client.private.env.json`, so `demo.http`
-   keeps working. The local token in `.dev.vars` is unaffected.
+3. Update the `prodToken` value in `http-client.private.env.json`, so `demo.http` keeps working. The
+   local token in `.dev.vars` is unaffected.
 
 4. Verify, checking both that the new token works and that the old one does not:
 
@@ -347,8 +345,8 @@ redeploy. Wrangler applies the new value on the next request.
      -d '{"device_id":"x","timestamp":"2026-10-01T12:00:00Z","event_type":"t","payload":{}}'
    ```
 
-   `201` means it worked. Swap in the old token and confirm you get `401`, so you
-   know the rotation really took effect.
+   `201` means it worked. Swap in the old token and confirm you get `401`, so you know the rotation
+   really took effect.
 
 To remove the secret entirely, which locks the endpoint with `401`:
 
@@ -356,10 +354,10 @@ To remove the secret entirely, which locks the endpoint with `401`:
 npx wrangler secret delete EVENTS_API_TOKEN
 ```
 
-> Right after a deploy or a secret change there is a short window while the change
-> propagates across the network, during which some requests may still be served by
-> the previous version. If you rotate a token because you believe it leaked, treat
-> the endpoint as exposed for a minute or two and verify afterwards.
+> Right after a deploy or a secret change there is a short window while the change propagates across
+> the network, during which some requests may still be served by the previous version. If you rotate
+> a token because you believe it leaked, treat the endpoint as exposed for a minute or two and
+> verify afterwards.
 
 ## Inspecting the production database
 
@@ -394,8 +392,8 @@ To see only what you care about, pass your own SQL:
 npm run db:execute:remote -- "SELECT id, device_id, event_type, payload FROM events ORDER BY id DESC LIMIT 10;"
 ```
 
-The `payload` column is the original JSON stored as text, so it comes back
-escaped: `{"temperature":23.4}`.
+The `payload` column is the original JSON stored as text, so it comes back escaped:
+`{"temperature":23.4}`.
 
 ### Count rows without dumping them
 
@@ -411,9 +409,8 @@ npm run db:execute:remote -- "SELECT count(*) AS total FROM events;"
 npx wrangler d1 info cfpoc-events
 ```
 
-This reports the database size, the region, and read/write query counts for the
-last 24 hours. Handy for confirming the production database is the one you think
-it is.
+This reports the database size, the region, and read/write query counts for the last 24 hours. Handy
+for confirming the production database is the one you think it is.
 
 ### Delete test rows
 
@@ -429,15 +426,14 @@ To keep only recent data:
 npm run db:execute:remote -- "DELETE FROM events WHERE timestamp < '2026-01-01T00:00:00Z';"
 ```
 
-> `--remote` is what makes these commands touch production. Without it, they
-> operate on the local database and production stays untouched. Double-check the
-> flag before running anything destructive.
+> `--remote` is what makes these commands touch production. Without it, they operate on the local
+> database and production stays untouched. Double-check the flag before running anything
+> destructive.
 
 ### Inspecting the database from the Cloudflare dashboard
 
-The same data is browsable at
-[dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages → D1 →
-`cfpoc-events`, where you can run queries and see rows without touching the CLI.
+The same data is browsable at [dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages →
+D1 → `cfpoc-events`, where you can run queries and see rows without touching the CLI.
 
 ## Database migrations
 
@@ -485,11 +481,11 @@ npm run test:watch
 
 ## Manual API requests
 
-`demo.http` contains ready-made requests for every endpoint and error case. It works
-with the VS Code "REST Client" extension.
+`demo.http` contains ready-made requests for every endpoint and error case. It works with the VS
+Code "REST Client" extension.
 
-The requests are unified against a single `{{url}}` variable, which points at the
-local environment by default:
+The requests are unified against a single `{{url}}` variable, which points at the local environment
+by default:
 
 ```text
 @localUrl = http://127.0.0.1:8787
@@ -506,8 +502,7 @@ The Worker is currently deployed at:
 https://cfpoc.andresmoschini.workers.dev
 ```
 
-Note that this endpoint is public and has no authentication. Do not send
-sensitive data to it.
+Note that this endpoint is public and has no authentication. Do not send sensitive data to it.
 
 ## Useful commands
 
@@ -600,20 +595,17 @@ The Worker returns `404` for unknown routes and `405` for unsupported HTTP metho
 
 ## Notes
 
-This is a proof of concept, not a production-ready API. Rate limiting,
-payload-size limits, stronger validation and observability should be added before
-exposing it to untrusted clients.
+This is a proof of concept, not a production-ready API. Rate limiting, payload-size limits, stronger
+validation and observability should be added before exposing it to untrusted clients.
 
 The shared token is a deliberate simplification, not real authentication:
 
-- One token for all clients, so anyone holding it can write events. There are no
-  identities, no per-device credentials and no way to revoke access for a single
-  client.
+- One token for all clients, so anyone holding it can write events. There are no identities, no
+  per-device credentials and no way to revoke access for a single client.
 - It travels in a header, so it must only be sent over HTTPS.
-- The comparison is timing-safe, but there is no rate limiting, so an attacker with
-  a fast connection could still brute-force a weak token. Use a long random value,
-  not a memorable one.
+- The comparison is timing-safe, but there is no rate limiting, so an attacker with a fast
+  connection could still brute-force a weak token. Use a long random value, not a memorable one.
 - Rotating the token means updating the secret and every client at the same time.
 
-For anything beyond a PoC, use a real auth mechanism and store the secret in
-Cloudflare's secret store rather than in a shared header.
+For anything beyond a PoC, use a real auth mechanism and store the secret in Cloudflare's secret
+store rather than in a shared header.

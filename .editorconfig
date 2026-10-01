@@ -1,0 +1,59 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_style = space
+indent_size = 2
+
+[*.{json,jsonc}]
+indent_style = space
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.{md,markdown,rst,txt}]
+indent_style = space
+indent_size = 2
+# Markdown preserve line breaks. Prettier owns the width and reflows the prose; this checker's
+# max_line_length cannot express that, which is why MD013 is off in .markdownlint-cli2.jsonc too.
+max_line_length = off
+
+[*.sql]
+indent_style = space
+indent_size = 2
+
+[*.http]
+indent_style = space
+indent_size = 2
+
+[.github/**]
+indent_style = space
+indent_size = 2
+
+[.{editorconfig,gitignore,gitattributes}]
+indent_style = space
+indent_size = 2
+
+[.env*]
+indent_style = space
+indent_size = 2
+
+# The one exception to the rule above, and it is here to agree with `*.bat text eol=crlf` and
+# `*.cmd text eol=crlf` in .gitattributes rather than to add a rule of its own: the Windows batch
+# interpreter does not run a file whose lines end in a bare LF. With this section absent,
+# `editorconfig-checker -fix` rewrites a batch file to LF and `git add` then answers
+# `fatal: LF would be replaced by CRLF`, so the fixer would be the thing breaking the file it checks.
+# No batch file is tracked today. The rule is here for the first one that is, and costs two lines.
+[{Makefile,makefile,*.make}]
+indent_style = tab
+
+[{Dockerfile,docker-compose.*,*.dockerfile}]
+indent_style = space
+indent_size = 2

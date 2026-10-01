@@ -38,10 +38,7 @@ export default {
   }
 } satisfies ExportedHandler<Env>;
 
-async function handleCreateEvent(
-  request: Request,
-  env: Env
-): Promise<Response> {
+async function handleCreateEvent(request: Request, env: Env): Promise<Response> {
   // The health endpoint stays open; everything else needs the shared token.
   if (!isAuthorized(request, env)) {
     return Response.json(
@@ -60,10 +57,7 @@ async function handleCreateEvent(
   try {
     event = await request.json<EventRequest>();
   } catch {
-    return Response.json(
-      { error: "Request body must be valid JSON" },
-      { status: 400 }
-    );
+    return Response.json({ error: "Request body must be valid JSON" }, { status: 400 });
   }
 
   if (
@@ -74,16 +68,14 @@ async function handleCreateEvent(
   ) {
     return Response.json(
       {
-        error:
-          "device_id, timestamp, event_type and payload are required"
+        error: "device_id, timestamp, event_type and payload are required"
       },
       { status: 400 }
     );
   }
 
-  await env.DB
-    .prepare(
-      `
+  await env.DB.prepare(
+    `
         INSERT INTO events (
           device_id,
           timestamp,
@@ -92,13 +84,8 @@ async function handleCreateEvent(
         )
         VALUES (?, ?, ?, ?)
       `
-    )
-    .bind(
-      event.device_id,
-      event.timestamp,
-      event.event_type,
-      JSON.stringify(event.payload)
-    )
+  )
+    .bind(event.device_id, event.timestamp, event.event_type, JSON.stringify(event.payload))
     .run();
 
   return Response.json({ ok: true }, { status: 201 });

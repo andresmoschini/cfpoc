@@ -1,0 +1,8 @@
+# npm owns this file and rewrites it on every install; formatting it would create churn on every
+# dependency change rather than enforce anything.
+package-lock.json
+
+# Written by `npm run db:migrate:local` and `npm run dev`. Not ours to format.
+.wrangler/
+
+node_modules/
