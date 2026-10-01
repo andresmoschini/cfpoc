@@ -233,6 +233,10 @@ deploy. The workflow prints the list of pending migrations first, so the tick is
 applies each migration in its own transaction and records it, so a failure part-way leaves the
 earlier ones applied: read the list before ticking it.
 
+A token with the permissions above can publish without ticking it. The tick only does something once
+a new file lands in `migrations/`, and `npx wrangler d1 migrations list cfpoc-events --remote` is
+what says whether that is pending.
+
 Migrations also stay available by hand:
 
 ```bash
@@ -243,15 +247,55 @@ npm run db:migrate:remote
 
 Under **Settings → Environments**, create an environment named `production`:
 
-| Kind     | Name                    | Value                                              |
-| -------- | ----------------------- | -------------------------------------------------- |
-| Secret   | `CLOUDFLARE_API_TOKEN`  | An API token with Account → Workers Scripts → Edit |
-| Secret   | `CLOUDFLARE_ACCOUNT_ID` | `e03df910670b7af814f102cdcfc0996b`                 |
-| Variable | `WORKER_URL`            | `https://cfpoc.andresmoschini.workers.dev`         |
+| Kind     | Name                    | Value                                      |
+| -------- | ----------------------- | ------------------------------------------ |
+| Secret   | `CLOUDFLARE_API_TOKEN`  | An API token, permissions below            |
+| Secret   | `CLOUDFLARE_ACCOUNT_ID` | `e03df910670b7af814f102cdcfc0996b`         |
+| Variable | `WORKER_URL`            | `https://cfpoc.andresmoschini.workers.dev` |
 
-`CLOUDFLARE_ACCOUNT_ID` is not really a secret; it is the account id from the Cloudflare dashboard
-and it is already in the D1 entry in `wrangler.jsonc`. It is named as a secret here so the workflow
-and the configuration cannot drift apart on it.
+The token needs three account permissions and no zone permission at all:
+
+```text
+Account | Workers Scripts  | Edit   -> wrangler deploy
+Account | D1               | Edit   -> d1 migrations list, and apply when ticked
+Account | Account Settings | Read   -> requested by wrangler itself
+```
+
+Scope the account resources to that one account rather than to all accounts, and give the token an
+expiry. It can publish code and write to the production database, so the expiry is what limits the
+damage if it ever leaks.
+
+**Cloudflare's own "Edit Cloudflare Workers" template is not enough**, and that is worth knowing
+before you build the token from it. Measured against Cloudflare's published list of what the
+template grants, and against [deploy.yml](.github/workflows/deploy.yml): the template gives Workers
+Scripts Write, Workers KV Storage Write, Workers R2 Storage Write, Workers Tail Read, Account
+Settings Read, Workers Routes Write at the zone level, and two user-level reads. It does not give
+D1.
+
+Meanwhile the "Show what is about to be published" step runs `wrangler d1 migrations list --remote`
+on every deploy, with no condition on it. A token built from the template alone therefore fails
+there, before anything is published. Failing before the deploy is the right failure, but it is still
+a deploy that does not work, so the D1 permission is not optional.
+
+The template's other permissions can be dropped. KV, R2 and Tail are unused by this project. The
+zone-level Workers Routes Write is unused too, because the Worker is served from `*.workers.dev`
+rather than from a route on a zone.
+
+To check a token before dispatching a deploy, run the two commands the workflow runs. Both are
+reads, so neither publishes anything. Environment variables take precedence over a local
+`wrangler login`, which is what makes this a test of the token rather than of your session:
+
+```bash
+CLOUDFLARE_API_TOKEN=<token> npx wrangler deployments list --name cfpoc
+CLOUDFLARE_API_TOKEN=<token> CLOUDFLARE_ACCOUNT_ID=e03df910670b7af814f102cdcfc0996b \
+  npx wrangler d1 migrations list cfpoc-events --remote
+```
+
+`CLOUDFLARE_ACCOUNT_ID` is not really a secret: it is the account id from the Cloudflare dashboard.
+It is named as a secret rather than a variable so every step that talks to Cloudflare carries its
+credentials the same way. It is **not** in `wrangler.jsonc`, which holds the D1 `database_id` and no
+account, so this secret is the only place the account id is recorded for CI. Anything else depends
+on `wrangler login`, which a runner does not have.
 
 `WORKER_URL` is used for the health check after the deploy. The environment name is what attaches
 required reviewers later, without moving the credentials anywhere.
