@@ -3,8 +3,8 @@
 ### Requiere la extensión "REST Client" de VS Code (Huemanshu Azad).
 ###
 ### Las consultas de abajo están unificadas: apuntan a `{{url}}`, que por
-### defecto es el entorno local. Para probar contra produccion, cambia solo
-### la linea `@url` de abajo por `{{remoteUrl}}`.
+### defecto es el entorno local. Para probar contra produccion, cambia las
+### dos lineas del selector de entorno mas abajo, la URL y el token.
 ###
 ### `localUrl`: cambiala si `wrangler dev` levanta en otro puerto (imprime
 ### "Ready on http://127.0.0.1:8788" cuando el 8787 esta ocupado).
@@ -18,13 +18,18 @@
 ### `POST /events` requiere el header `Authorization: Bearer <token>`.
 ### `GET /` NO requiere token.
 ###
-### Los tokens son DISTINTOS en local y en produccion, y viven en
-### `http-client.private.env.json` (ignorado por git), no en este fichero.
-### Crea ese fichero con tus valores si no lo tienes:
-###   {
-###     "localToken": "<el valor de EVENTS_API_TOKEN en tu .dev.vars>",
-###     "prodToken": "<el secreto de produccion, ver README>"
-###   }
+### Los tokens son DISTINTOS en local y en produccion, y viven en `.env`
+### (ignorado por git), no en este fichero.
+###
+### `$dotenv` los lee del `.env` que este en el mismo directorio que este fichero, o en el primer
+### directorio padre que lo contenga. Crea `.env` a partir de `.env.example` si no lo tienes:
+###   cp .env.example .env
+### y rellena:
+###   localToken=<el valor de EVENTS_API_TOKEN en tu .dev.vars>
+###   prodToken=<el secreto de produccion, ver README>
+###
+### Ojo: `localToken` tiene que ser EXACTAMENTE el mismo string que `EVENTS_API_TOKEN` en
+### `.dev.vars`, o estas peticiones responde 401 mientras el resto del entorno local funciona.
 ###
 ### PARA CAMBIAR DE ENTORNO, edita las dos lineas marcadas abajo: la URL
 ### y el token van juntos, porque cada entorno usa el suyo.
@@ -34,7 +39,7 @@
 
 ### ---- ENTORNO: cambia estas dos lineas a la vez ----
 @url = {{localUrl}}
-@apiToken = {{localToken}}
+@apiToken = {{$dotenv localToken}}
 ### ---- fin del selector de entorno ----
 
 @deviceId = demo-01

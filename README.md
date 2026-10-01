@@ -277,33 +277,60 @@ leaving only `.env`, and confirming the Worker still received the binding. The p
   secret in it can leak into a test runner, a linter or a bundler that loads the environment
   implicitly.
 
-Note that the VS Code REST Client extension does **not** read `.env` files, so switching to `.env`
-would not make the tokens available to `demo.http` anyway. The extension takes its variables from
-`http-client.env.json` (safe to commit) and `http-client.private.env.json` (private, gitignored
-here). Requesting native `.env` support is a long-standing open issue in the extension
-([#418](https://github.com/Huachao/vscode-restclient/issues/418)).
+So the two files have separate jobs and both are needed. `.dev.vars` holds the binding the Worker
+reads; `.env` holds the two tokens `demo.http` sends, and nothing else in the project reads it. See
+[Tokens for `demo.http`](#tokens-for-demohttp).
 
 #### Tokens for `demo.http`
 
-`demo.http` takes its tokens from `http-client.private.env.json`, which is gitignored. Create it
-once:
+`demo.http` reads both tokens from `.env` in the repository root, through the extension's `$dotenv`
+system variable. Create it once:
 
-```json
-{
-  "localToken": "the value of EVENTS_API_TOKEN in your .dev.vars",
-  "prodToken": "the production secret"
-}
+```bash
+cp .env.example .env
 ```
+
+Then fill in the two values:
+
+```text
+localToken=<the value of EVENTS_API_TOKEN in your .dev.vars>
+prodToken=<the production secret>
+```
+
+`localToken` has to be the same string as `EVENTS_API_TOKEN` in `.dev.vars`. If it is not, the
+requests in `demo.http` get `401` while every other local client keeps working, which is an awkward
+symptom to debug for what is usually a single wrong character.
 
 Then switch environments by editing the two marked lines in `demo.http`:
 
 ```text
 @url = {{localUrl}}
-@apiToken = {{localToken}}
+@apiToken = {{$dotenv localToken}}
 ```
 
-Change both to `{{remoteUrl}}` and `{{prodToken}}` to test production. They travel together on
-purpose: each environment has its own token.
+Change both to `{{remoteUrl}}` and `{{$dotenv prodToken}}` to test production. They travel together
+on purpose: each environment has its own token.
+
+##### How `$dotenv` finds the file, and why it is the only thing used here
+
+`$dotenv` starts in the directory of the `.http` file and walks up to the filesystem root, taking
+the first `.env` it finds. If a REST Client environment is selected and a file named
+`.env.<that environment>` exists next to it, that one wins. The file is parsed with
+[dotenv](https://github.com/motdotla/dotenv) and read again on every request, so editing `.env`
+takes effect on the next send with no restart. `demo.http` sits at the repository root, next to
+`.env`.
+
+Worth knowing, because it is the reason this file looks the way it does: `$dotenv` was not always
+available, and this README spent a while claiming the extension could not read `.env` at all. It
+can, and has been able to since
+[0.23.0](https://github.com/Huachao/vscode-restclient/releases/tag/v0.23.0), which added `$dotenv`
+in response to [issue #418](https://github.com/Huachao/vscode-restclient/issues/418), the very issue
+the old text cited as proof that it was impossible. The extension's real environment variables come
+from `rest-client.environmentVariables` in the VS Code settings file, and this project sets none
+there, so a `{{localToken}}` reference resolved to nothing and every authenticated request answered
+`401`. `http-client.env.json` and `http-client.private.env.json`, named in the old text, were never
+read by any version of the extension; `.gitignore` still lists the private one so that a token in a
+file somebody followed the old instructions to create cannot be committed.
 
 ### Set the token in production
 
@@ -349,8 +376,8 @@ applies the new value on the next request.
    npx wrangler secret put EVENTS_API_TOKEN
    ```
 
-3. Update the `prodToken` value in `http-client.private.env.json`, so `demo.http` keeps working. The
-   local token in `.dev.vars` is unaffected.
+3. Update the `prodToken` value in `.env`, so `demo.http` keeps working. The local token in
+   `.dev.vars` is unaffected.
 
 4. Verify, checking both that the new token works and that the old one does not:
 
@@ -520,7 +547,24 @@ by default:
 @url = {{localUrl}}
 ```
 
-To test production, change only the `@url` line to `{{remoteUrl}}`.
+To test production, change the `@url` line to `{{remoteUrl}}`. The token moves with it, because each
+environment has its own:
+
+```text
+@url = {{remoteUrl}}
+@apiToken = {{$dotenv prodToken}}
+```
+
+The token itself comes from `.env` in the repository root, which has to exist before any request
+that sends an `Authorization` header will work:
+
+```bash
+cp .env.example .env
+```
+
+The requests marked as expecting `401` need no `.env`: they are the ones checking that the
+protection is active. [Tokens for `demo.http`](#tokens-for-demohttp) has the details, including how
+`$dotenv` locates the file and why the extension's own environment file is not used.
 
 The Worker is currently deployed at:
 
@@ -581,6 +625,7 @@ cfpoc/
 ├── demo.http
 ├── .dev.vars.example
 ├── .editorconfig
+├── .env.example
 ├── .gitattributes
 ├── .gitignore
 ├── .nvmrc
