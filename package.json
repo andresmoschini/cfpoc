@@ -11,6 +11,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply cfpoc-events --remote",
     "db:query:local": "wrangler d1 execute cfpoc-events --local --command=\"SELECT * FROM events ORDER BY id DESC;\"",
     "db:query:remote": "wrangler d1 execute cfpoc-events --remote --command=\"SELECT * FROM events ORDER BY id DESC;\"",
+    "db:execute:local": "wrangler d1 execute cfpoc-events --local --command",
+    "db:execute:remote": "wrangler d1 execute cfpoc-events --remote --command",
     "test": "vitest run",
     "test:watch": "vitest"
   },

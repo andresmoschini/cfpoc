@@ -211,6 +211,149 @@ Query the production database:
 npm run db:query:remote
 ```
 
+## Authentication
+
+`POST /events` requires a shared token in the `Authorization` header. The health
+endpoint `GET /` stays open, so you can still check that the Worker is alive without
+a token.
+
+```bash
+curl -X POST https://cfpoc.andresmoschini.workers.dev/events \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"device_id":"demo-01","timestamp":"2026-10-01T12:00:00Z","event_type":"telemetry","payload":{"temperature":23.4}}'
+```
+
+Requests without a valid token get `401` and nothing is written to the database.
+
+### Set up the token locally
+
+Wrangler reads `.dev.vars` automatically and exposes the values as env bindings, so
+the same code runs locally and in production. That file is gitignored.
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+Then generate a token and put it in `.dev.vars`:
+
+```bash
+node -e "console.log(crypto.randomUUID())"
+```
+
+```text
+EVENTS_API_TOKEN=paste-the-generated-value-here
+```
+
+Then run `npm run dev` as usual. The token is required locally too, so you cannot
+forget it and only discover the problem in production.
+
+### Set the token in production
+
+Production reads the token from a Wrangler secret, not from a file. Generate one:
+
+```bash
+node -e "console.log(crypto.randomUUID())"
+```
+
+Store it as a secret:
+
+```bash
+npx wrangler secret put EVENTS_API_TOKEN
+```
+
+Wrangler prompts for the value and encrypts it. Use the same value locally in
+`.dev.vars` so both environments accept the same requests.
+
+To confirm a secret exists without revealing it:
+
+```bash
+npx wrangler secret list
+```
+
+> Secrets are environment-level, not tied to a deployment. Setting the secret does
+> not require a new `npm run deploy`; the change applies on the next request.
+> Removing a secret makes the endpoint fail closed with `401`, because the Worker
+> treats a missing token as unauthorized.
+
+## Inspecting the production database
+
+This section explains the commands used to check the D1 database in production.
+
+### Ver the tables and indexes that exist
+
+Run arbitrary SQL against the remote database with `db:execute:remote`:
+
+```bash
+npm run db:execute:remote -- "SELECT name FROM sqlite_master WHERE type IN ('table','index');"
+```
+
+```text
+name
+d1_migrations          <- control table Wrangler uses to track applied migrations
+events                 <- the table this project creates
+idx_events_device_timestamp
+```
+
+The `d1_migrations` table is managed by Wrangler, not by your SQL. Do not edit it.
+
+### Confirm data arrived
+
+```bash
+npm run db:query:remote
+```
+
+To see only what you care about, pass your own SQL:
+
+```bash
+npm run db:execute:remote -- "SELECT id, device_id, event_type, payload FROM events ORDER BY id DESC LIMIT 10;"
+```
+
+The `payload` column is the original JSON stored as text, so it comes back
+escaped: `{"temperature":23.4}`.
+
+### Count rows without dumping them
+
+Useful right after a deploy to confirm a request wrote anything:
+
+```bash
+npm run db:execute:remote -- "SELECT count(*) AS total FROM events;"
+```
+
+### Check the database size and usage
+
+```bash
+npx wrangler d1 info cfpoc-events
+```
+
+This reports the database size, the region, and read/write query counts for the
+last 24 hours. Handy for confirming the production database is the one you think
+it is.
+
+### Delete test rows
+
+The endpoint has no authentication, so public test data is expected. To clean up:
+
+```bash
+npm run db:execute:remote -- "DELETE FROM events;"
+```
+
+To keep only recent data:
+
+```bash
+npm run db:execute:remote -- "DELETE FROM events WHERE timestamp < '2026-01-01T00:00:00Z';"
+```
+
+> `--remote` is what makes these commands touch production. Without it, they
+> operate on the local database and production stays untouched. Double-check the
+> flag before running anything destructive.
+
+### Inspecting the database from the Cloudflare dashboard
+
+The same data is browsable at
+[dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages → D1 →
+`cfpoc-events`, where you can run queries and see rows without touching the CLI.
+
 ## Database migrations
 
 Migrations are versioned SQL files:
@@ -290,7 +433,20 @@ npm run db:migrate:local    # Apply migrations to local D1
 npm run db:migrate:remote   # Apply migrations to remote D1
 npm run db:query:local      # Query local D1
 npm run db:query:remote     # Query remote D1
+npm run db:execute:local -- "SELECT count(*) FROM events;"   # Custom SQL, local
+npm run db:execute:remote -- "SELECT count(*) FROM events;"  # Custom SQL, remote
 npm run deploy              # Deploy Worker
+```
+
+Token and database commands, useful when you are not familiar with Cloudflare:
+
+```bash
+npx wrangler secret put EVENTS_API_TOKEN   # Set the production token (prompts)
+npx wrangler secret list                   # Show secret names, never values
+npx wrangler d1 info cfpoc-events          # DB size, region, 24h query counts
+npx wrangler deployments list              # Deployed versions
+npx wrangler d1 list                      # All D1 databases in the account
+npx wrangler whoami                       # Logged-in account and permissions
 ```
 
 ## Project structure
@@ -304,6 +460,7 @@ cfpoc/
 ├── test/
 │   └── index.test.ts
 ├── demo.http
+├── .dev.vars.example
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
@@ -315,6 +472,8 @@ cfpoc/
 ## API
 
 ### `POST /events`
+
+Requires the `Authorization: Bearer YOUR_TOKEN` header. Returns `401` without it.
 
 Request:
 
@@ -356,4 +515,20 @@ The Worker returns `404` for unknown routes and `405` for unsupported HTTP metho
 
 ## Notes
 
-This is a proof of concept, not a production-ready API. In particular, authentication, authorization, rate limiting, payload-size limits, stronger validation and observability should be added before exposing it to untrusted clients.
+This is a proof of concept, not a production-ready API. Rate limiting,
+payload-size limits, stronger validation and observability should be added before
+exposing it to untrusted clients.
+
+The shared token is a deliberate simplification, not real authentication:
+
+- One token for all clients, so anyone holding it can write events. There are no
+  identities, no per-device credentials and no way to revoke access for a single
+  client.
+- It travels in a header, so it must only be sent over HTTPS.
+- The comparison is timing-safe, but there is no rate limiting, so an attacker with
+  a fast connection could still brute-force a weak token. Use a long random value,
+  not a memorable one.
+- Rotating the token means updating the secret and every client at the same time.
+
+For anything beyond a PoC, use a real auth mechanism and store the secret in
+Cloudflare's secret store rather than in a shared header.
