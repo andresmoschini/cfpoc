@@ -248,6 +248,47 @@ EVENTS_API_TOKEN=paste-the-generated-value-here
 Then run `npm run dev` as usual. The token is required locally too, so you cannot
 forget it and only discover the problem in production.
 
+#### Why `.dev.vars` and not `.env`?
+
+Wrangler reads both, so either works for `npm run dev`. This was verified by
+removing `.dev.vars`, leaving only `.env`, and confirming the Worker still received
+the binding. The project keeps `.dev.vars` because:
+
+- It is the name Wrangler's own scaffolding uses for local secrets, so it is
+  greppable when you are unsure where a local secret lives.
+- Its contents are only ever read by `wrangler dev`. A `.env` file is picked up by
+  many tools, so a secret in it can leak into a test runner, a linter or a bundler
+  that loads the environment implicitly.
+
+Note that the VS Code REST Client extension does **not** read `.env` files, so
+switching to `.env` would not make the tokens available to `demo.http` anyway. The
+extension takes its variables from `http-client.env.json` (safe to commit) and
+`http-client.private.env.json` (private, gitignored here). Requesting native `.env`
+support is a long-standing open issue in the extension
+([#418](https://github.com/Huachao/vscode-restclient/issues/418)).
+
+#### Tokens for `demo.http`
+
+`demo.http` takes its tokens from `http-client.private.env.json`, which is
+gitignored. Create it once:
+
+```json
+{
+  "localToken": "the value of EVENTS_API_TOKEN in your .dev.vars",
+  "prodToken": "the production secret"
+}
+```
+
+Then switch environments by editing the two marked lines in `demo.http`:
+
+```text
+@url = {{localUrl}}
+@apiToken = {{localToken}}
+```
+
+Change both to `{{remoteUrl}}` and `{{prodToken}}` to test production. They travel
+together on purpose: each environment has its own token.
+
 ### Set the token in production
 
 Production reads the token from a Wrangler secret, not from a file. Generate one:
@@ -262,8 +303,12 @@ Store it as a secret:
 npx wrangler secret put EVENTS_API_TOKEN
 ```
 
-Wrangler prompts for the value and encrypts it. Use the same value locally in
-`.dev.vars` so both environments accept the same requests.
+Wrangler prompts for the value and encrypts it.
+
+**Local and production use different tokens on purpose.** A token leaked from a
+developer's machine should not grant access to production, and a token pasted into
+a chat window or a screenshot should not be a production credential. The two
+environments are therefore independent: rotating one does not affect the other.
 
 To confirm a secret exists without revealing it:
 
@@ -271,10 +316,50 @@ To confirm a secret exists without revealing it:
 npx wrangler secret list
 ```
 
-> Secrets are environment-level, not tied to a deployment. Setting the secret does
-> not require a new `npm run deploy`; the change applies on the next request.
-> Removing a secret makes the endpoint fail closed with `401`, because the Worker
-> treats a missing token as unauthorized.
+### Changing the production token
+
+Secrets are environment-level, not tied to a version, so you do **not** need to
+redeploy. Wrangler applies the new value on the next request.
+
+1. Generate a new token:
+
+   ```bash
+   node -e "console.log(crypto.randomUUID())"
+   ```
+
+2. Overwrite the secret. `wrangler secret put` asks for the new value and replaces
+   the old one:
+
+   ```bash
+   npx wrangler secret put EVENTS_API_TOKEN
+   ```
+
+3. Update the `prodToken` value in `http-client.private.env.json`, so `demo.http`
+   keeps working. The local token in `.dev.vars` is unaffected.
+
+4. Verify, checking both that the new token works and that the old one does not:
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+     https://cfpoc.andresmoschini.workers.dev/events \
+     -H "Authorization: Bearer NUEVO_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"device_id":"x","timestamp":"2026-10-01T12:00:00Z","event_type":"t","payload":{}}'
+   ```
+
+   `201` means it worked. Swap in the old token and confirm you get `401`, so you
+   know the rotation really took effect.
+
+To remove the secret entirely, which locks the endpoint with `401`:
+
+```bash
+npx wrangler secret delete EVENTS_API_TOKEN
+```
+
+> Right after a deploy or a secret change there is a short window while the change
+> propagates across the network, during which some requests may still be served by
+> the previous version. If you rotate a token because you believe it leaked, treat
+> the endpoint as exposed for a minute or two and verify afterwards.
 
 ## Inspecting the production database
 
