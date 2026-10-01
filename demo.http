@@ -14,17 +14,49 @@
 ### Recuerda: `wrangler dev` usa SIEMPRE la D1 local. Las peticiones a
 ### `remoteUrl` si van a la D1 remota, porque ahi hay un Worker desplegado.
 ### Ver la nota sobre `--remote` en el README.
+###
+### `POST /events` requiere el header `Authorization: Bearer <token>`.
+### Poner el token de verdad en `apiToken` mas abajo. El valor de ejemplo
+### es solo un placeholder y dara 401. El token local esta en `.dev.vars`
+### (ignorado por git) y el de produccion se creo con:
+###   npx wrangler secret put EVENTS_API_TOKEN
+### `GET /` NO requiere token.
 
 @localUrl = http://127.0.0.1:8787
 @remoteUrl = https://cfpoc.andresmoschini.workers.dev
 
 @url = {{localUrl}}
+@apiToken = PEGA_AQUI_EL_TOKEN
 @deviceId = demo-01
 @timestamp = 2026-10-01T12:00:00Z
 
-# Health check. No toca la base de datos.
+# Health check. No requiere token. No toca la base de datos.
 GET {{url}}/
 Accept: application/json
+
+### POST sin token -> 401 {"error":"Unauthorized"}
+# Comprueba que la proteccion esta activa en el entorno que estas probando.
+POST {{url}}/events
+Content-Type: application/json
+
+{
+  "device_id": "sin-token",
+  "timestamp": "2026-10-01T12:00:00Z",
+  "event_type": "telemetry",
+  "payload": {}
+}
+
+### POST con token incorrecto -> 401
+POST {{url}}/events
+Content-Type: application/json
+Authorization: Bearer token-incorrecto
+
+{
+  "device_id": "token-malo",
+  "timestamp": "2026-10-01T12:00:00Z",
+  "event_type": "telemetry",
+  "payload": {}
+}
 
 ### Evento válido -> 201 {"ok":true}
 # Local:
@@ -34,6 +66,7 @@ Accept: application/json
 # `npm run db:query:remote`.
 POST {{url}}/events
 Content-Type: application/json
+Authorization: Bearer {{apiToken}}
 
 {
   "device_id": "{{deviceId}}",
@@ -47,6 +80,7 @@ Content-Type: application/json
 ### Evento con payload anidado (el payload se guarda como texto JSON) -> 201
 POST {{url}}/events
 Content-Type: application/json
+Authorization: Bearer {{apiToken}}
 
 {
   "device_id": "sensor-7",
@@ -62,12 +96,14 @@ Content-Type: application/json
 ### JSON invalido (falta la llave de cierre) -> 400
 POST {{url}}/events
 Content-Type: application/json
+Authorization: Bearer {{apiToken}}
 
 {
 
 ### Faltan campos obligatorios -> 400 con mensaje de error
 POST {{url}}/events
 Content-Type: application/json
+Authorization: Bearer {{apiToken}}
 
 {
   "device_id": "solo-el-id"
@@ -76,6 +112,7 @@ Content-Type: application/json
 ### payload puede ser cualquier valor JSON, incluso un array -> 201
 POST {{url}}/events
 Content-Type: application/json
+Authorization: Bearer {{apiToken}}
 
 {
   "device_id": "batch-01",

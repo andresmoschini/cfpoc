@@ -1,0 +1,9 @@
+# Local development secrets. Copy to .dev.vars and fill in the values.
+# .dev.vars is gitignored, so this file must never contain real secrets.
+#
+# wrangler dev reads .dev.vars automatically and exposes the values as env
+# bindings, so the same code works locally and in production.
+#
+# Generate a token with:  node -e "console.log(crypto.randomUUID())"
+
+EVENTS_API_TOKEN=local-dev-token

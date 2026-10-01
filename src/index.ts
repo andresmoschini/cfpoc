@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database;
+  EVENTS_API_TOKEN: string;
 }
 
 interface EventRequest {
@@ -41,6 +42,19 @@ async function handleCreateEvent(
   request: Request,
   env: Env
 ): Promise<Response> {
+  // The health endpoint stays open; everything else needs the shared token.
+  if (!isAuthorized(request, env)) {
+    return Response.json(
+      { error: "Unauthorized" },
+      {
+        status: 401,
+        headers: {
+          "WWW-Authenticate": 'Bearer realm="cfpoc"'
+        }
+      }
+    );
+  }
+
   let event: EventRequest;
 
   try {
@@ -88,4 +102,41 @@ async function handleCreateEvent(
     .run();
 
   return Response.json({ ok: true }, { status: 201 });
+}
+
+/**
+ * Checks the shared token in the Authorization header.
+ *
+ * Uses a timing-safe comparison so the token cannot be guessed one character at
+ * a time. The token is a shared secret, not a real auth system: see the Notes
+ * section of the README.
+ */
+function isAuthorized(request: Request, env: Env): boolean {
+  // Fail closed. If the binding is missing there is no way to authenticate.
+  if (!env.EVENTS_API_TOKEN) {
+    return false;
+  }
+
+  const header = request.headers.get("Authorization") ?? "";
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+
+  if (!match) {
+    return false;
+  }
+
+  const expected = new TextEncoder().encode(env.EVENTS_API_TOKEN);
+  const provided = new TextEncoder().encode(match[1].trim());
+
+  // Compare lengths first: TextEncoder gives byte lengths, and constant-time
+  // comparison only makes sense for equal-length inputs.
+  if (expected.length !== provided.length) {
+    return false;
+  }
+
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected[i] ^ provided[i];
+  }
+
+  return diff === 0;
 }
