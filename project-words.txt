@@ -13,6 +13,7 @@ browsable
 cfpoc
 commitlint
 commitlintrc
+dotenv
 esbenp
 greppable
 humao

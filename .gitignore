@@ -1,12 +1,18 @@
 node_modules/
 .wrangler/
 .dev.vars
+
+# Tokens for demo.http, read by the REST Client through {{$dotenv}}. `.env.*` also covers the
+# per-environment files the extension prefers over `.env` when an environment is selected, and
+# `.env.*` swallows `.env.example` too, so the reference has to be pulled back in.
 .env
 .env.*
 !.env.example
 
-# Tokens used by the VS Code REST Client, filled in per developer.
-# Not ignored by default upstream, so it has to be added here.
+# Dead rule, kept on purpose. No version of the REST Client extension reads this file: it takes its
+# environment variables from rest-client.environmentVariables in the VS Code settings file, and
+# this project sets none. The README used to instruct people to create it, and a token sitting in
+# an unignored file is worse than one line nobody reads.
 http-client.private.env.json
 
 dist/

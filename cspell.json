@@ -48,9 +48,12 @@
     "project-words.txt",
     // Local secrets. Gitignored, so useGitignore already covers these, and naming them is redundant
     // on purpose: a mistyped ignore rule would otherwise turn the spell checker into a way to read a
-    // token aloud in a CI log.
+    // token aloud in a CI log. .env holds both tokens demo.http sends, so it is the one file here
+    // whose contents are worth being loud about; .env.example is tracked and therefore checked.
     ".dev.vars",
     ".env",
+    // Dead rule, matching .gitignore. Nothing reads this file, but anyone who followed an older
+    // README did create it, and it would hold a production token if they did.
     "http-client.private.env.json"
   ]
 }
