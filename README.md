@@ -41,6 +41,15 @@ cd cfpoc
 npm install
 ```
 
+Then point Git at the hooks, so the quality gate runs before each commit:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+That setting is local to a clone, so it has to be set once per checkout. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for what the gate checks and why each tool is there.
+
 ## Local development
 
 The local development environment uses Wrangler's local D1 database. It does not modify the remote
@@ -170,7 +179,15 @@ This applies the SQL migrations in `migrations/` to the remote D1 database.
 
 ## Deploy the Worker
 
-Deploy with:
+Merging to `main` does **not** deploy. Publishing is a deliberate click: open the **Actions** tab,
+pick **Deploy**, press **Run workflow**. It publishes `main` by default, and there is a checkbox to
+apply pending D1 migrations first.
+
+That is on purpose. `wrangler deploy` promotes a version atomically and can be rolled back; a D1
+migration cannot, and deploying the previous commit does not undo one. The reasoning is in
+[CONTRIBUTING.md](CONTRIBUTING.md#deploying), along with the one-time GitHub setup.
+
+To deploy from your machine instead:
 
 ```bash
 npm run deploy
@@ -479,6 +496,15 @@ Run it in watch mode:
 npm run test:watch
 ```
 
+The tests are one step of a larger gate, which also checks the types, bundles the Worker, and checks
+formatting, line endings and spelling:
+
+```bash
+npm run check
+```
+
+CI runs that exact command on every push. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Manual API requests
 
 `demo.http` contains ready-made requests for every endpoint and error case. It works with the VS
@@ -507,8 +533,10 @@ Note that this endpoint is public and has no authentication. Do not send sensiti
 ## Useful commands
 
 ```bash
-npm run dev                 # Local Worker
-npm test                    # Tests
+npm run check                     # The whole quality gate; CI runs exactly this
+npm run fix                       # The part of the gate that can fix what it finds
+npm run dev                       # Local Worker
+npm test                          # Tests
 npm run db:migrate:local    # Apply migrations to local D1
 npm run db:migrate:remote   # Apply migrations to remote D1
 npm run db:query:local      # Query local D1
@@ -533,16 +561,33 @@ npx wrangler whoami                       # Logged-in account and permissions
 
 ```text
 cfpoc/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml               # Runs npm run check on every push and pull request
+│       └── deploy.yml           # Manual publish, from the Actions tab
+├── .githooks/
+│   ├── commit-msg               # Session trailer, then commitlint
+│   └── pre-commit               # The quality gate
 ├── migrations/
 │   └── 0001_initial.sql
+├── scripts/
+│   ├── gate.mjs                 # The single definition of "green"
+│   ├── probe-cspell-coverage.sh # Asks the spell check which files it actually reads
+│   └── test-session-guard.sh    # Tests the guard that stamps the session trailer
 ├── src/
 │   └── index.ts
 ├── test/
 │   └── index.test.ts
 ├── demo.http
 ├── .dev.vars.example
+├── .editorconfig
+├── .gitattributes
 ├── .gitignore
+├── .nvmrc
+├── CONTRIBUTING.md
+├── cspell.json
 ├── package.json
+├── project-words.txt
 ├── tsconfig.json
 ├── vitest.config.ts
 ├── wrangler.jsonc
