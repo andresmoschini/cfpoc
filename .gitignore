@@ -4,6 +4,11 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Tokens used by the VS Code REST Client, filled in per developer.
+# Not ignored by default upstream, so it has to be added here.
+http-client.private.env.json
+
 dist/
 coverage/
 .DS_Store

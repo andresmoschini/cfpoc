@@ -16,17 +16,27 @@
 ### Ver la nota sobre `--remote` en el README.
 ###
 ### `POST /events` requiere el header `Authorization: Bearer <token>`.
-### Poner el token de verdad en `apiToken` mas abajo. El valor de ejemplo
-### es solo un placeholder y dara 401. El token local esta en `.dev.vars`
-### (ignorado por git) y el de produccion se creo con:
-###   npx wrangler secret put EVENTS_API_TOKEN
 ### `GET /` NO requiere token.
+###
+### Los tokens son DISTINTOS en local y en produccion, y viven en
+### `http-client.private.env.json` (ignorado por git), no en este fichero.
+### Crea ese fichero con tus valores si no lo tienes:
+###   {
+###     "localToken": "<el valor de EVENTS_API_TOKEN en tu .dev.vars>",
+###     "prodToken": "<el secreto de produccion, ver README>"
+###   }
+###
+### PARA CAMBIAR DE ENTORNO, edita las dos lineas marcadas abajo: la URL
+### y el token van juntos, porque cada entorno usa el suyo.
 
 @localUrl = http://127.0.0.1:8787
 @remoteUrl = https://cfpoc.andresmoschini.workers.dev
 
+### ---- ENTORNO: cambia estas dos lineas a la vez ----
 @url = {{localUrl}}
-@apiToken = PEGA_AQUI_EL_TOKEN
+@apiToken = {{localToken}}
+### ---- fin del selector de entorno ----
+
 @deviceId = demo-01
 @timestamp = 2026-10-01T12:00:00Z
 
