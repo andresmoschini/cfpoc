@@ -181,6 +181,15 @@ Wrangler will print the deployed URL, for example:
 https://cfpoc.<your-subdomain>.workers.dev
 ```
 
+For this project that is:
+
+```text
+https://cfpoc.andresmoschini.workers.dev
+```
+
+The endpoint is public and has no authentication, so anyone can post events to
+it. Do not send sensitive data until you add auth.
+
 Test the online API:
 
 ```bash
@@ -261,8 +270,16 @@ local environment by default:
 @url = {{localUrl}}
 ```
 
-To test production, change only the `@url` line to `{{remoteUrl}}`. Note that
-`remoteUrl` only responds after `npm run deploy`.
+To test production, change only the `@url` line to `{{remoteUrl}}`.
+
+The Worker is currently deployed at:
+
+```text
+https://cfpoc.andresmoschini.workers.dev
+```
+
+Note that this endpoint is public and has no authentication. Do not send
+sensitive data to it.
 
 ## Useful commands
 

@@ -8,7 +8,8 @@
 ###
 ### `localUrl`: cambiala si `wrangler dev` levanta en otro puerto (imprime
 ### "Ready on http://127.0.0.1:8788" cuando el 8787 esta ocupado).
-### `remoteUrl`: solo responde despues de `npm run deploy`.
+### `remoteUrl`: el Worker ya esta desplegado en esta URL. Si la cambias por
+### otro nombre o subdomain, ejecuta `npm run deploy` de nuevo.
 ###
 ### Recuerda: `wrangler dev` usa SIEMPRE la D1 local. Las peticiones a
 ### `remoteUrl` si van a la D1 remota, porque ahi hay un Worker desplegado.
