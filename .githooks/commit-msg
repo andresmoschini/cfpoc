@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+# Records which agent session produced the commit, then checks the message against Conventional
+# Commits.
+#
+# Installed by `git config core.hooksPath .githooks`, which has to be run once per checkout because
+# core.hooksPath is a local setting and does not travel with a clone.
+
+MSG_FILE="$1"
+
+[ -n "$MSG_FILE" ] && [ -f "$MSG_FILE" ] || exit 0
+
+# --- Record the session -----------------------------------------------------
+#
+# Written as a trailer rather than as a free-standing line because a line that is not a trailer at
+# the end of a message invalidates the entire block. Measured: with a bracketed line appended after
+# Co-Authored-By, `git interpret-trailers --parse` reports no trailers at all.
+#
+# --if-exists doNothing keeps `git commit --amend` idempotent, and keeps the session that first
+# wrote the commit rather than the one that touched it last.
+#
+# The variable is OPENCODE_SESSION_ID, which this harness exports into the environment of the shells
+# it spawns: `git commit` runs as a child of one of those shells and this hook as a child of git, so
+# the value inherited is always the session that is committing. Reading it from a transcript file
+# instead would be a guess: several sessions can be open on one checkout, and "the newest transcript"
+# is not the same thing as "the one committing".
+#
+# When the variable is absent or malformed -- a commit made by hand, or a client that stops exporting
+# it -- nothing is stamped and the commit proceeds. A commit with no session trailer is fine; one
+# carrying somebody else's is not, and a commit that fails over this is worse than either.
+#
+# THE GUARD, AND WHY IT IS NOT THE OBVIOUS ONE. The obvious form is
+#
+#     UUID='[0-9a-zA-Z_-]+'
+#     case "$OPENCODE_SESSION_ID" in
+#     ses_?$UUID) stamp ;;
+#     esac
+#
+# which matches nothing on this machine: `+` after a bracket expression does not act as "one or more"
+# in the case statement's matcher, on Windows with Git for Windows' MSYS2 toolchain. Measured, and the
+# same answer from sh, bash and dash:
+#
+#     case abc in [a-z]+)  ...   no match      (GNU bash documents this as a match)
+#     case abc in [a-z]*)  ...   match         (`*` works)
+#     case abc in [a-z]?)  ...   no match      (correct: `?` is exactly one character)
+#
+# `printf 'abc\n' | grep -Eq '^[a-z]+$'` does match, so this is the shell's pattern matcher and not
+# the character or the encoding.
+#
+# The failure is silent in the worst way possible. The guard is a filter, so a guard that matches
+# nothing stamps nothing: every commit comes out without the trailer, and nothing anywhere reports an
+# error. That is why the form below uses only the two operators measured working -- `?` for the
+# minimum length, `*` for the rest -- and tests the character set with a separate negated bracket
+# expression. Both are in one case statement so there is a single answer either way.
+#
+# The guard is deliberately loose about length and strict about characters. Pinning an exact length
+# would be a claim about an id scheme this repository does not control, and a change to that scheme
+# would stop the stamping silently, which is the same failure one release away. For a value to be
+# stamped wrongly it would have to begin `ses_`, carry at least one more character, carry nothing
+# outside the alphanumerics and the dash, and be set in this repository's environment by something
+# other than this harness.
+NOT_ALLOWED='*[!0-9a-zA-Z_-]*'
+
+case "$OPENCODE_SESSION_ID" in
+$NOT_ALLOWED)
+    # A character the id cannot carry. Not stamped, and not an error: see above.
+    ;;
+ses_?*)
+    git interpret-trailers --in-place --if-exists doNothing \
+        --trailer "OpenCode-Session: $OPENCODE_SESSION_ID" "$MSG_FILE"
+    ;;
+esac
+
+# --- Check the message ------------------------------------------------------
+#
+# Runs after the stamp, so what commitlint validates is what will be committed, trailer included.
+
+if [ ! -d node_modules ]; then
+    echo "commit-msg: the tooling is not installed, so the message cannot be checked." >&2
+    echo "  Run: npm install" >&2
+    exit 1
+fi
+
+# The .cmd shim is what npm creates on Windows; the bare name is what exists elsewhere.
+if [ -x "node_modules/.bin/commitlint" ]; then
+    exec node_modules/.bin/commitlint --edit "$MSG_FILE"
+fi
+
+exec node_modules/.bin/commitlint.cmd --edit "$MSG_FILE"

@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Runs the whole quality gate before a commit is created.
+#
+# It calls the same entry point CI calls, so what passes here passes there. If this hook and CI ever
+# disagree, one of them is calling something other than `npm run check`, and that is the bug.
+#
+# Installed by `git config core.hooksPath .githooks`, which has to be run once per checkout because
+# core.hooksPath is a local setting and does not travel with a clone.
+#
+# So this does not run for someone working outside an agent harness. That is deliberate: CI is the
+# enforcement boundary, and this hook is fast feedback rather than the guarantee.
+#
+# KNOWN LIMITATION: this checks the working tree, not the staged snapshot. With unstaged changes
+# present, or after `git add -p`, it verifies files that are not exactly the ones being committed, so
+# a commit can pass here and still be broken. Stashing to fix that risks losing work when the hook is
+# interrupted, which is a worse failure than the one it prevents. See CONTRIBUTING.md.
+
+if ! command -v npm >/dev/null 2>&1; then
+    echo "pre-commit: npm was not found on PATH." >&2
+    echo "  A graphical git client may not share the PATH your shell has." >&2
+    exit 1
+fi
+
+exec npm run check
