@@ -31,7 +31,7 @@ describe("cfpoc worker", () => {
 
     const response = await worker.fetch(
       new Request("https://example.com/"),
-      env.DB as never
+      env as never
     );
 
     expect(response.status).toBe(200);
@@ -59,7 +59,7 @@ describe("cfpoc worker", () => {
           }
         })
       }),
-      env.DB as never
+      env as never
     );
 
     expect(response.status).toBe(201);
@@ -88,7 +88,7 @@ describe("cfpoc worker", () => {
         },
         body: "{"
       }),
-      env.DB as never
+      env as never
     );
 
     expect(response.status).toBe(400);

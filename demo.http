@@ -1,0 +1,95 @@
+### cfpoc — pruebas locales y remotas
+###
+### Requiere la extensión "REST Client" de VS Code (Huemanshu Azad).
+###
+### Las consultas de abajo están unificadas: apuntan a `{{url}}`, que por
+### defecto es el entorno local. Para probar contra produccion, cambia solo
+### la linea `@url` de abajo por `{{remoteUrl}}`.
+###
+### `localUrl`: cambiala si `wrangler dev` levanta en otro puerto (imprime
+### "Ready on http://127.0.0.1:8788" cuando el 8787 esta ocupado).
+### `remoteUrl`: solo responde despues de `npm run deploy`.
+###
+### Recuerda: `wrangler dev` usa SIEMPRE la D1 local. Las peticiones a
+### `remoteUrl` si van a la D1 remota, porque ahi hay un Worker desplegado.
+### Ver la nota sobre `--remote` en el README.
+
+@localUrl = http://127.0.0.1:8787
+@remoteUrl = https://cfpoc.andresmoschini.workers.dev
+
+@url = {{localUrl}}
+@deviceId = demo-01
+@timestamp = 2026-10-01T12:00:00Z
+
+# Health check. No toca la base de datos.
+GET {{url}}/
+Accept: application/json
+
+### Evento válido -> 201 {"ok":true}
+# Local:
+# Se escribe en la D1 local (.wrangler/state/), no en la remota.
+# Remoto:
+# Esta peticion escribe en la D1 REMOTA. Verificalo despues con
+# `npm run db:query:remote`.
+POST {{url}}/events
+Content-Type: application/json
+
+{
+  "device_id": "{{deviceId}}",
+  "timestamp": "{{timestamp}}",
+  "event_type": "telemetry",
+  "payload": {
+    "temperature": 23.4
+  }
+}
+
+### Evento con payload anidado (el payload se guarda como texto JSON) -> 201
+POST {{url}}/events
+Content-Type: application/json
+
+{
+  "device_id": "sensor-7",
+  "timestamp": "2026-10-01T12:05:00Z",
+  "event_type": "telemetry",
+  "payload": {
+    "temperature": 25.1,
+    "humidity": 48,
+    "tags": ["indoor", "floor-2"]
+  }
+}
+
+### JSON invalido (falta la llave de cierre) -> 400
+POST {{url}}/events
+Content-Type: application/json
+
+{
+
+### Faltan campos obligatorios -> 400 con mensaje de error
+POST {{url}}/events
+Content-Type: application/json
+
+{
+  "device_id": "solo-el-id"
+}
+
+### payload puede ser cualquier valor JSON, incluso un array -> 201
+POST {{url}}/events
+Content-Type: application/json
+
+{
+  "device_id": "batch-01",
+  "timestamp": "2026-10-01T12:10:00Z",
+  "event_type": "batch",
+  "payload": [
+    { "temp": 20.1 },
+    { "temp": 20.2 }
+  ]
+}
+
+### Metodo no soportado en /events -> 405 con cabecera Allow: POST
+GET {{url}}/events
+Accept: application/json
+
+### Ruta inexistente -> 404
+GET {{url}}/no-existe
+Accept: application/json

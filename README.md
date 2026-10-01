@@ -45,6 +45,30 @@ npm install
 
 The local development environment uses Wrangler's local D1 database. It does not modify the remote Cloudflare database.
 
+> **Note: `npm run dev` always uses the local D1 database.**
+>
+> Even when `wrangler.jsonc` points at a real `database_id`, `wrangler dev` binds the
+> database in `local` mode. Requests sent to the local server are written to the local
+> database, never to the remote one. You can confirm it in the startup output:
+>
+> ```text
+> env.DB (cfpoc-events)      D1 Database      local
+> ```
+>
+> To send development traffic to the remote database, start Wrangler with `--remote`:
+>
+> ```bash
+> npx wrangler dev --remote
+> ```
+>
+> Every request then goes to your Cloudflare account. This is rarely what you want during
+> development, and it is the most common reason a row you thought you had written never
+> shows up in production.
+>
+> The local database is a separate SQLite file under `.wrangler/state/`, keyed by
+> `database_id`. If you change `database_id`, Wrangler points at a *new* empty local
+> database, so run `npm run db:migrate:local` again and expect local rows to be gone.
+
 First apply the migrations locally:
 
 ```bash
@@ -222,6 +246,24 @@ Run it in watch mode:
 npm run test:watch
 ```
 
+## Manual API requests
+
+`demo.http` contains ready-made requests for every endpoint and error case. It works
+with the VS Code "REST Client" extension.
+
+The requests are unified against a single `{{url}}` variable, which points at the
+local environment by default:
+
+```text
+@localUrl = http://127.0.0.1:8787
+@remoteUrl = https://cfpoc.<your-subdomain>.workers.dev
+
+@url = {{localUrl}}
+```
+
+To test production, change only the `@url` line to `{{remoteUrl}}`. Note that
+`remoteUrl` only responds after `npm run deploy`.
+
 ## Useful commands
 
 ```bash
@@ -244,6 +286,7 @@ cfpoc/
 │   └── index.ts
 ├── test/
 │   └── index.test.ts
+├── demo.http
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json

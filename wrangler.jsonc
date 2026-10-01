@@ -9,7 +9,7 @@
     {
       "binding": "DB",
       "database_name": "cfpoc-events",
-      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "database_id": "c8d08227-9bb8-4919-b209-87e95cc0920b",
       "migrations_dir": "migrations"
     }
   ]
