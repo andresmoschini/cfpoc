@@ -1,0 +1,122 @@
+# Publishes main to Cloudflare, on request rather than on merge.
+#
+# WHY MANUAL, NOT ON MERGE. `wrangler deploy` promotes a version atomically and can be rolled back.
+# A D1 migration cannot be, and it cannot be undone by deploying the previous commit. A deploy that
+# fires automatically on merge therefore has two failure modes with very different recoveries: the
+# Worker version is wrong for a few minutes, or the schema is wrong and the old Worker does not run
+# against it any more. Only the first is self-healing, so publishing waits for a person.
+#
+# WHY IT STILL RUNS THE GATE. CI already gates every push, so this could trust that verdict and would
+# be cheaper for it. It does not, because this workflow can be dispatched against a commit whose CI
+# run has not finished, or whose run was cancelled, and publishing then would mean trusting a check
+# that never reported. Running the same entry point costs about seven seconds and removes the question.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_migrations:
+        description: "Apply pending D1 migrations before deploying"
+        type: boolean
+        default: false
+        required: false
+      ref:
+        description: "Commit or branch to publish"
+        type: string
+        default: main
+        required: false
+
+# Deliberately absent: cancel-in-progress. Cancelling mid-run can leave a version uploaded and not
+# promoted, or migrations half applied. Two deploys requested in a row is a situation for a person to
+# resolve, not for the queue to drop the first one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+
+    # Environment-scoped, so `production` can be given required reviewers later without moving the
+    # credentials anywhere.
+    environment: production
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # Named explicitly rather than left at the default, because the dispatch can target any ref
+          # and the point of the run is to publish exactly the commit that was asked for.
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install the tooling
+        run: npm ci
+
+      # The same entry point ci.yml runs. See the note at the top of this file.
+      - name: Run the quality gate
+        run: npm run check
+
+      # Printed before anything is written to Cloudflare, so the run's log records what was published
+      # even if a later step fails. The migration listing needs credentials, which is why this step
+      # carries them: it talks to the remote database, and failing here is better than discovering the
+      # state after the deploy.
+      - name: Show what is about to be published
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          git --no-pager log -1 --format='commit %H%nsubject %s'
+          echo
+          npx wrangler d1 migrations list cfpoc-events --remote
+
+      # Off by default. A migration is applied to the one database and there is no rollback, so it
+      # takes a deliberate tick rather than following from the deploy. The listing above is what makes
+      # the tick informed: it names the migrations that would run.
+      #
+      # Wrangler applies each migration in its own transaction and records it, so a failure part-way
+      # leaves the earlier ones applied. That is a reason to read the list first, not a reason to
+      # avoid the step.
+      - name: Apply pending migrations
+        if: inputs.apply_migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run db:migrate:remote
+
+      # Recorded on the version so `wrangler deployments list` answers "which commit is live" without
+      # a lookup. The commit message says what changed; this says where it came from.
+      #
+      # The sha comes from `git rev-parse HEAD` rather than from `github.sha`. The latter is the tip of
+      # the ref the dispatch happened on, which is not necessarily the ref being published: inputs.ref
+      # may name an older commit, and recording the wrong one would make this log answer the wrong
+      # question.
+      #
+      # The production token is NOT set here. It lives in Cloudflare as a Wrangler secret, which is
+      # environment-level rather than version-level, so a deploy neither carries it nor can delete it.
+      # That is why there is no application secret to rotate in this repository, and why no secret
+      # needs to be re-entered to publish.
+      - name: Deploy the Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "Publishing $sha"
+          npm run deploy -- --message "deployed from $sha"
+
+      # The deploy succeeded but the Worker could still be answering 404 on its route. Health is a
+      # GET on /, which is the one endpoint this project deliberately leaves unauthenticated, so this
+      # needs no token and adds no secret to the run.
+      - name: Check that it answers
+        env:
+          WORKER_URL: ${{ vars.WORKER_URL }}
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$WORKER_URL/"
