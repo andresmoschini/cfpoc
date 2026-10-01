@@ -11,4 +11,9 @@ http-client.private.env.json
 
 dist/
 coverage/
+
+# Written by the cspell step. It holds file paths and word lists, nothing else, but it changes on
+# every run and would otherwise be a permanent source of diff noise.
+.cspellcache
+
 .DS_Store

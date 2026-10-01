@@ -22,6 +22,11 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261001.1",
+    "@cspell/dict-bash": "4.2.3",
+    "@cspell/dict-es-es": "3.0.8",
+    "cspell": "10.3.6",
+    "editorconfig-checker": "6.2.0",
+    "markdownlint-cli2": "0.23.3",
     "prettier": "3.9.9",
     "typescript": "7.0.2",
     "vitest": "5.0.3",

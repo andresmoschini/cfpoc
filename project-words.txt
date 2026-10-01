@@ -1,0 +1,25 @@
+# Words this project uses that no dictionary knows. One per line, sorted, case as written.
+#
+# Add a word here only after checking it is not simply misspelled, and only if neither the English
+# nor the Spanish dictionary already covers it: every entry is a word the spell checker will stop
+# questioning forever. Prefer a dictionary over this file whenever one exists for the domain.
+#
+# A Spanish word belongs here only when the Spanish dictionary genuinely lacks it. Most of the prose
+# in demo.http is covered by @cspell/dict-es-es and must not be added here: a Spanish spelling that
+# the dictionary rejects gets fixed, not listed.
+AUTOINCREMENT
+Azad
+browsable
+cfpoc
+commitlint
+esbenp
+greppable
+humao
+Huemanshu
+MSYS
+nvmrc
+nsubject
+OPENCODE
+Verificalo
+vitest
+webp

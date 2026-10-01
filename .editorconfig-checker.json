@@ -1,0 +1,8 @@
+{
+  "_comment": [
+    "This file is parsed as strict JSON by editorconfig-checker 6.x, so the reasoning lives in a key named _comment rather than in // comments. A // line here is a parse error, not a comment: verified, it makes the step exit 2 before checking anything.",
+    "IndentSize is disabled because it is incompatible with the output of this project's own formatter. Prettier uses alignment as well as indentation, and an aligned continuation line is not a multiple of the indent size by definition: prettier indents a wrapped call's arguments to sit under the opening parenthesis. Measured: with this check on, the tree reports errors and every one of them is formatter output, not a mistake.",
+    "What remains is still worth running: end-of-line, final newline and trailing whitespace on .gitignore, .gitattributes, .nvmrc and the SQL files, which prettier cannot parse at all."
+  ],
+  "Disable": { "IndentSize": true }
+}
